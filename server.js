@@ -28,13 +28,37 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    await client.connect(); 
+
+    const menuCollection = client.db("bistroDb").collection("foodMenu")
+    const reviewCollection = client.db("bistroDb").collection("reviews")
+    const cartCollection = client.db("bistroDb").collection("carts")
+ 
+    // 
+    app.get("/menu",  async (req, res) => {
+        const menuData = await menuCollection.find({}).toArray();
+        res.send(menuData)
+      });
+    // 
+    app.get("/review",  async (req, res) => {
+        const reviewData = await reviewCollection.find({}).toArray();
+        res.send(reviewData)
+      });
+
+      //
+      app.post('/carts', async (req, res) => {
+        const item = req.body;
+        console.log('item-->',item);
+        const result = await cartCollection.insertOne(item);
+        // console.log(item,'server------------>', result); 
+        res.send(result)
+      })
+
+    
+    // await client.db("admin").command({ ping: 1 });  
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close(); 
   }
 }
 run().catch(console.dir);
@@ -48,3 +72,14 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Bistro Boos Server is Running port:https://${port}`);
 });
+
+/* 
+------------------------
+naming convention
+==========================
+app.get('/user')
+app.get('/user/id')
+app.post('/user')
+app.patch('/user/id')
+app.put('/user/id')
+*/
