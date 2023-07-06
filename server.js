@@ -9,6 +9,7 @@ app.use(express.json());
 
 // config
 require("dotenv").config();
+var jwt = require('jsonwebtoken');
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.5tob0mc.mongodb.net/?retryWrites=true&w=majority`;
@@ -27,18 +28,19 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    const menuCollection = client.db("bistroDb").collection("foodMenu");
-    const reviewCollection = client.db("bistroDb").collection("reviews");
-    const cartCollection = client.db("bistroDb").collection("carts");
+    const menuItemsCollection = client.db("bistroDb").collection("foodMenu");
+    const reviewsCollection = client.db("bistroDb").collection("reviews");
+    const cartsCollection = client.db("bistroDb").collection("carts");
+    const usersCollection = client.db("bistroDb").collection("users");
 
     //
     app.get("/menu", async (req, res) => {
-      const menuData = await menuCollection.find({}).toArray();
+      const menuData = await menuItemsCollection.find({}).toArray();
       res.send(menuData);
     });
     //
     app.get("/review", async (req, res) => {
-      const reviewData = await reviewCollection.find({}).toArray();
+      const reviewData = await reviewsCollection.find({}).toArray();
       res.send(reviewData);
     });
 
@@ -50,23 +52,40 @@ async function run() {
       if (!email) {
         res.send(["love email not found"]);
       }
-      const resultCart = await cartCollection.find({ email: email }).toArray();
+      const resultCart = await cartsCollection.find({ email: email }).toArray();
       res.send(resultCart);
     });
 
     //Cart save data
     app.post("/carts", async (req, res) => {
       const item = req.body;
-      // console.log("item-->", item); 
-      const result = await cartCollection.insertOne(item);
+      // console.log("item-->", item);
+      const result = await cartsCollection.insertOne(item);
       res.send(result);
     });
 
     app.delete("/mycart/:id", async (req, res) => {
-      const id = req.params.id; 
-      const result = await cartCollection.deleteOne({ _id: new ObjectId(id) });
+      const id = req.params.id;
+      const result = await cartsCollection.deleteOne({ _id: new ObjectId(id) });
       res.send(result);
     });
+
+    app.post("/users", async (req, res) => {
+      const body = req.body;
+      console.log('user - body ->', body);
+      const result = await usersCollection.insertOne(body);
+      const createToken = jwt.sign(
+        {
+          email: body.email,
+        },
+        process.env.SECRET_TOKEN,
+        { expiresIn: "8h" }
+      );
+      // console.log(createToken); 
+      res.send({createToken, result})
+    });
+
+    console.log(process.env.SECRET_TOKEN);
 
     // await client.db("admin").command({ ping: 1 });
     console.log(
