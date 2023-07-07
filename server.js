@@ -1,3 +1,5 @@
+const jwt = require("jsonwebtoken");
+
 const express = require("express");
 const cors = require("cors");
 const app = express();
@@ -9,8 +11,31 @@ app.use(express.json());
 
 // config
 require("dotenv").config();
-var jwt = require("jsonwebtoken");
 
+// ============================Jwt================================
+const verifyJwtUser = (req, res, next) => {
+  const autHeader = req.headers.authorization;
+
+  // console.log(req.headers.authorization,' = .menu'); / token found
+  if (!autHeader) {
+    return res
+      .status(403)
+      .send({ messages: "token nai unAuthorization access" });
+  }
+  const token = autHeader.split(" ")[1];
+  console.log(token, " -- > token");
+  jwt.verify(token, process.env.SECRET_TOKEN, function (err, decoded) {
+    if (err) {
+      return res.status(401).send({ messages: "token bad forbidden access" });
+    }
+    req.decoded = decoded.email;
+    next();
+  });
+};
+
+/* -------------------------------------------------------------------------- */
+
+//
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.5tob0mc.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -36,21 +61,28 @@ async function run() {
     // JWT SAVE USER TOKEN
     app.post("/jwt", async (req, res) => {
       const email = req.body;
-
-      console.log("jwt uesr =>", email);
-
       const powerToken = jwt.sign(
         {
           email,
         },
         process.env.SECRET_TOKEN,
-        { expiresIn: "8h" }
+        { expiresIn: "12h" }
       );
-      
-      console.log("powerToken=>", powerToken);
-      res.send(powerToken);
+      res.send({
+        success: true,
+        token: powerToken,
+        message: "token send the client side user",
+      });
     });
-    //
+    // Work client side headers to send the server localstroe token
+
+    // app.get("/menu", verifyJwtUser, async (req, res) => {
+    //   const decodedEmail = req.decoded.email;
+    //   console.log(decodedEmail);
+    //   const menuData = await menuItemsCollection.find({}).toArray();
+    //   res.send(menuData);
+    // });
+
     app.get("/menu", async (req, res) => {
       const menuData = await menuItemsCollection.find({}).toArray();
       res.send(menuData);
@@ -63,14 +95,24 @@ async function run() {
 
     //  TODO: cart email find all data get
 
-    app.get("/carts", async (req, res) => {
+    app.get("/carts", verifyJwtUser, async (req, res) => {
       const email = req.query.email;
-      // console.log("my email -> ", email);
       if (!email) {
         res.send(["carts love email not found"]);
       }
-      const resultCart = await cartsCollection.find({ email: email }).toArray();
-      res.send(resultCart);
+      const decodedEmail = req.decoded.email;
+
+      // console.log("email --> ", email);
+      // console.log("decodedEmail --> ", decodedEmail);
+
+      if (email === decodedEmail) {
+        const resultCart = await cartsCollection
+          .find({ email: email })
+          .toArray();
+        res.send(resultCart);
+      } else {
+        return res.status(401).send({ message: "forbidden access" });
+      }
     });
 
     //Cart save data
@@ -90,7 +132,6 @@ async function run() {
     // TODO: users related api
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find({}).toArray();
-      // console.log("users get", result);
       res.send(result);
     });
 
@@ -121,7 +162,6 @@ async function run() {
         { _id: new ObjectId(id) },
         updateDoc
       );
-      console.log("update -->", result);
       res.send(result);
     });
 
