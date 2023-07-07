@@ -9,7 +9,7 @@ app.use(express.json());
 
 // config
 require("dotenv").config();
-var jwt = require('jsonwebtoken');
+var jwt = require("jsonwebtoken");
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.5tob0mc.mongodb.net/?retryWrites=true&w=majority`;
@@ -33,6 +33,23 @@ async function run() {
     const cartsCollection = client.db("bistroDb").collection("carts");
     const usersCollection = client.db("bistroDb").collection("users");
 
+    // JWT SAVE USER TOKEN
+    app.post("/jwt", async (req, res) => {
+      const email = req.body;
+
+      console.log("jwt uesr =>", email);
+
+      const powerToken = jwt.sign(
+        {
+          email,
+        },
+        process.env.SECRET_TOKEN,
+        { expiresIn: "8h" }
+      );
+      
+      console.log("powerToken=>", powerToken);
+      res.send(powerToken);
+    });
     //
     app.get("/menu", async (req, res) => {
       const menuData = await menuItemsCollection.find({}).toArray();
@@ -48,9 +65,9 @@ async function run() {
 
     app.get("/carts", async (req, res) => {
       const email = req.query.email;
-      console.log("my email -> ", email);
+      // console.log("my email -> ", email);
       if (!email) {
-        res.send(["love email not found"]);
+        res.send(["carts love email not found"]);
       }
       const resultCart = await cartsCollection.find({ email: email }).toArray();
       res.send(resultCart);
@@ -70,22 +87,43 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/users", async (req, res) => {
-      const body = req.body;
-      console.log('user - body ->', body);
-      const result = await usersCollection.insertOne(body);
-      const createToken = jwt.sign(
-        {
-          email: body.email,
-        },
-        process.env.SECRET_TOKEN,
-        { expiresIn: "8h" }
-      );
-      // console.log(createToken); 
-      res.send({createToken, result})
+    // TODO: users related api
+    app.get("/users", async (req, res) => {
+      const result = await usersCollection.find({}).toArray();
+      // console.log("users get", result);
+      res.send(result);
     });
 
-    console.log(process.env.SECRET_TOKEN);
+    app.post("/users", async (req, res) => {
+      const body = req.body;
+
+      const existUser = await usersCollection.findOne({ email: body.email });
+      //
+      if (existUser) {
+        return res.send({ message: "user already exists" });
+      }
+      //
+      const result = await usersCollection.insertOne(body);
+
+      res.send(result);
+    });
+
+    // Eamil validted
+    app.patch("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+
+      const findUser = await usersCollection.findOne({ _id: new ObjectId(id) });
+
+      const updateDoc = {
+        $set: { userRole: "admin" },
+      };
+      const result = await usersCollection.updateOne(
+        { _id: new ObjectId(id) },
+        updateDoc
+      );
+      console.log("update -->", result);
+      res.send(result);
+    });
 
     // await client.db("admin").command({ ping: 1 });
     console.log(
