@@ -90,11 +90,20 @@ async function run() {
 
     // Work client side headers to send the server localstroe toke
 
+    //Menu Add Item
+    app.post("/menu", verifyJwtUser, verifyAdmin, async (req, res) => {
+      const newItem = req.body;
+      const result = await menuItemsCollection.insertOne(newItem);
+      res.send(result);
+    });
+
+    /* TODO: Menu Releted apis */
     app.get("/menu", async (req, res) => {
       const menuData = await menuItemsCollection.find({}).toArray();
       res.send(menuData);
     });
     //
+
     app.get("/review", async (req, res) => {
       const reviewData = await reviewsCollection.find({}).toArray();
       res.send(reviewData);
@@ -105,7 +114,7 @@ async function run() {
     app.get("/carts", verifyJwtUser, async (req, res) => {
       const email = req.query.email;
       if (!email) {
-      return  res.send(["carts love email not found"]);
+        return res.send(["carts love email not found"]);
       }
       const decodedEmail = req.decoded.email;
 
@@ -113,7 +122,7 @@ async function run() {
         const resultCart = await cartsCollection
           .find({ email: email })
           .toArray();
-       return res.send(resultCart);
+        return res.send(resultCart);
       } else {
         return res.status(401).send({ message: "forbidden access" });
       }
@@ -157,8 +166,8 @@ async function run() {
     app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       const user = await usersCollection.findOne({ _id: new ObjectId(id) });
-      if (user.userRole==="admin") {
-       return res.send({ message: "all ready exists admin" });
+      if (user.userRole === "admin") {
+        return res.send({ message: "all ready exists admin" });
       }
       const updateDoc = {
         $set: { userRole: "admin" },
