@@ -23,7 +23,7 @@ const verifyJwtUser = (req, res, next) => {
       .send({ messages: "token nai unAuthorization access" });
   }
   const token = autHeader.split(" ")[1];
-  console.log(token, " -- > token");
+  // console.log(token, " -- > token");
   jwt.verify(token, process.env.SECRET_TOKEN, function (err, decoded) {
     if (err) {
       return res.status(401).send({ messages: "token bad forbidden access" });
@@ -74,14 +74,21 @@ async function run() {
         message: "token send the client side user",
       });
     });
-    // Work client side headers to send the server localstroe token
 
-    // app.get("/menu", verifyJwtUser, async (req, res) => {
-    //   const decodedEmail = req.decoded.email;
-    //   console.log(decodedEmail);
-    //   const menuData = await menuItemsCollection.find({}).toArray();
-    //   res.send(menuData);
-    // });
+    // Warning: use verify jwet token berfore using
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      console.log("email dc ---> ", email);
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      console.log(user);
+      if (user.userRole !== "admin") {
+        res.status(401).send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
+
+    // Work client side headers to send the server localstroe toke
 
     app.get("/menu", async (req, res) => {
       const menuData = await menuItemsCollection.find({}).toArray();
@@ -98,18 +105,15 @@ async function run() {
     app.get("/carts", verifyJwtUser, async (req, res) => {
       const email = req.query.email;
       if (!email) {
-        res.send(["carts love email not found"]);
+      return  res.send(["carts love email not found"]);
       }
       const decodedEmail = req.decoded.email;
-
-      // console.log("email --> ", email);
-      // console.log("decodedEmail --> ", decodedEmail);
 
       if (email === decodedEmail) {
         const resultCart = await cartsCollection
           .find({ email: email })
           .toArray();
-        res.send(resultCart);
+       return res.send(resultCart);
       } else {
         return res.status(401).send({ message: "forbidden access" });
       }
@@ -130,7 +134,7 @@ async function run() {
     });
 
     // TODO: users related api
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyJwtUser, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find({}).toArray();
       res.send(result);
     });
@@ -149,12 +153,13 @@ async function run() {
       res.send(result);
     });
 
-    // Eamil validted
+    //  ToOdo: client user Admin see any user Admin role setting
     app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
-
-      const findUser = await usersCollection.findOne({ _id: new ObjectId(id) });
-
+      const user = await usersCollection.findOne({ _id: new ObjectId(id) });
+      if (user.userRole==="admin") {
+       return res.send({ message: "all ready exists admin" });
+      }
       const updateDoc = {
         $set: { userRole: "admin" },
       };
@@ -165,6 +170,25 @@ async function run() {
       res.send(result);
     });
 
+    // =============
+    // # Ciroriry #################################
+    // # varyfyjwt , if email check exists user
+
+    app.get("/user/admin/:email", verifyJwtUser, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        return res.send("does not exist decoded email unAuthorized");
+      }
+
+      // true or false -> admin  role check  database usersCollections
+      const findUser = await usersCollection.findOne({ email: email });
+
+      const isAdmin = findUser.userRole === "admin";
+
+      res.send({ admin: isAdmin, message: "O role admin check" });
+    });
+    // ============================
     // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
