@@ -11,6 +11,8 @@ app.use(express.json());
 
 // config
 require("dotenv").config();
+//
+const stripe = require("stripe")(process.env.Payment_Secret_key);
 
 // ============================Jwt================================
 const verifyJwtUser = (req, res, next) => {
@@ -103,6 +105,12 @@ async function run() {
       res.send(menuData);
     });
     //
+    app.delete("/menu/:id", verifyJwtUser, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await menuItemsCollection.deleteOne(query);
+      res.send(result);
+    });
 
     app.get("/review", async (req, res) => {
       const reviewData = await reviewsCollection.find({}).toArray();
@@ -192,12 +200,30 @@ async function run() {
 
       // true or false -> admin  role check  database usersCollections
       const findUser = await usersCollection.findOne({ email: email });
-
-      const isAdmin = findUser.userRole === "admin";
-
-      res.send({ admin: isAdmin, message: "O role admin check" });
+      if (findUser) {
+        const isAdmin = findUser.userRole === "admin";
+        res.send({ admin: isAdmin, message: "O role admin check" });
+      } else {
+        res.send({ message: "no exist user find by email" });
+      }
     });
     // ============================
+
+    // create-payment-intent
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = price * 100;
+      const paymentIntent = stripe.paymentIntent({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      });
+    });
+
     // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
