@@ -228,9 +228,13 @@ async function run() {
     // payment related apis
     app.post("/payment", async (req, res) => {
       const payment = req.body;
-      console.log("server payemnt", payment);
-      const result = await paymentCollection.insertOne(payment);
-      res.send(result);
+      const insertResult = await paymentCollection.insertOne(payment);
+      const query = {
+        _id: { $in: payment.cartItemsId.map((id) => new ObjectId(id)) },
+      };
+      const deletedResult = await cartsCollection.deleteMany(query);
+      console.log(deletedResult);
+      res.send({insertResult, deletedResult});
     });
 
     // await client.db("admin").command({ ping: 1 });
