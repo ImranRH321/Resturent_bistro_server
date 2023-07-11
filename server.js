@@ -59,6 +59,7 @@ async function run() {
     const reviewsCollection = client.db("bistroDb").collection("reviews");
     const cartsCollection = client.db("bistroDb").collection("carts");
     const usersCollection = client.db("bistroDb").collection("users");
+    const paymentCollection = client.db("bistroDb").collection("payments");
 
     // JWT SAVE USER TOKEN
     app.post("/jwt", async (req, res) => {
@@ -207,43 +208,30 @@ async function run() {
         res.send({ message: "no exist user find by email" });
       }
     });
-    // ============================
 
-    // create-payment-intent
-    // app.post("/create-payment-intent", verifyJwtUser, async (req, res) => {
-    //   const { price } = req.body;
-    //   const amount = price * 100;
-    //   console.log(price, amount);
-    //   const paymentIntent = await stripe.paymentIntents({
-    //     amount: amount,
-    //     currency: "usd",
-    //     payment_method_types: ["card"],
-    //   });
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = price * 100;
+      console.log("price -->", price, "amout->", amount);
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
 
-    //   res.send({
-    //     clientSecret: paymentIntent.client_secret,
-    //   });
-    // });
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
 
- 
-     
-app.post("/create-payment-intent", async (req, res) => {
-  const { price} = req.body;
-  const amount = price *100;
-  console.log('price -->',price, 'amout->',amount)
-  // Create a PaymentIntent with the order amount and currency
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount,
-    currency: "usd",
-    payment_method_types: ["card"],
-  });
-
-  res.send({
-    clientSecret: paymentIntent.client_secret,
-  });
-});
-
-
+    // payment related apis
+    app.post("/payment", async (req, res) => {
+      const payment = req.body;
+      console.log("server payemnt", payment);
+      const result = await paymentCollection.insertOne(payment);
+      res.send(result);
+    });
 
     // await client.db("admin").command({ ping: 1 });
     console.log(
