@@ -210,19 +210,40 @@ async function run() {
     // ============================
 
     // create-payment-intent
-    app.post("/create-payment-intent", async (req, res) => {
-      const { price } = req.body;
-      const amount = price * 100;
-      const paymentIntent = stripe.paymentIntent({
-        amount: amount,
-        currency: "usd",
-        payment_method_types: ["card"],
-      });
+    // app.post("/create-payment-intent", verifyJwtUser, async (req, res) => {
+    //   const { price } = req.body;
+    //   const amount = price * 100;
+    //   console.log(price, amount);
+    //   const paymentIntent = await stripe.paymentIntents({
+    //     amount: amount,
+    //     currency: "usd",
+    //     payment_method_types: ["card"],
+    //   });
 
-      res.send({
-        clientSecret: paymentIntent.client_secret
-      });
-    });
+    //   res.send({
+    //     clientSecret: paymentIntent.client_secret,
+    //   });
+    // });
+
+ 
+     
+app.post("/create-payment-intent", async (req, res) => {
+  const { price} = req.body;
+  const amount = price *100;
+  console.log('price -->',price, 'amout->',amount)
+  // Create a PaymentIntent with the order amount and currency
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount,
+    currency: "usd",
+    payment_method_types: ["card"],
+  });
+
+  res.send({
+    clientSecret: paymentIntent.client_secret,
+  });
+});
+
+
 
     // await client.db("admin").command({ ping: 1 });
     console.log(
