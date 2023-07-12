@@ -238,7 +238,7 @@ async function run() {
     });
 
     // Admin
-    app.get("/admin/stats", async (req, res) => {
+    app.get("/admin/stats", verifyJwtUser, verifyAdmin, async (req, res) => {
       const products = await menuItemsCollection.estimatedDocumentCount();
       const users = await usersCollection.estimatedDocumentCount();
       const orders = await paymentCollection.estimatedDocumentCount();
@@ -247,6 +247,57 @@ async function run() {
 
       res.send({ revenue: revenue, products, users, orders });
     });
+
+    // apis
+    app.get("/order-stats",  async (req, res) => {
+      const pipeline = [
+        {
+          $lookup: {
+            from: "menu",
+            localField: "menuItems",
+            foreignField: "_id",
+            as: "menuItemsData",
+          },
+        },
+        {
+          $unwind: "$menuItemsData",
+        },
+        {
+          $group: {
+            _id: "$menuItemsData.category",
+            count: { $sum: 1 },
+            total: { $sum: "$menuItemsData.price" },
+          },
+        },
+        {
+          $project: {
+            category: "$_id",
+            count: 1,
+            total: { $round: ["$total", 2] },
+            _id: 0,
+          },
+        },
+      ];
+
+      const result = await paymentCollection.aggregate(pipeline).toArray();
+      res.send(result);
+    });
+   /* ============ */
+   // Bangla System //
+   app.get('/order', async (req, res) => {
+    const orders = await paymentCollection.find().toArray();
+    const menu = await menuItemsCollection.find().toArray();
+     orders.forEach(item => {
+      const menuItems = item.menuItems;
+       console.log(menuItems,'payment'); // []
+       console.log(menu,'menu'); //{}
+       
+    });
+  
+    res.send(orders);
+   })
+   /* ============ */
+
 
     // await client.db("admin").command({ ping: 1 });
     console.log(
